@@ -1,0 +1,72 @@
+# Docker
+# Build a Docker image
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- main
+
+resources:
+- repo: self
+
+variables:
+  tag: '$(Build.BuildId)' #igual para todos
+  imageRepository: 'frontendportfolio-sesims' #nome que ficará na imagem
+  containerRegistry: 'sc-registry-portfolio-sesims' #nome do Service Connection criado anteriormente
+  containerRegistry2: 'registrysfiems.azurecr.io' #igual para todos
+  repossshurl: 'git@ssh.dev.azure.com:v3/COTIN-Infra-e-Seguranca/Portfolio-SESIMS/deploy-portfolio-sesims-frontend-dev' #url ssh do git onde está os arquivos deploy para o kubernetes
+   
+
+################################## CI ################################## 
+
+stages:
+- stage: Build
+  displayName: Iniciando o Ubuntu
+  jobs:
+  - job: Build
+    displayName: Iniciando o Ubuntu
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: Docker@2
+      displayName: Build da imagem no Ubuntu
+      inputs:
+        command: build
+        containerRegistry: $(containerRegistry)
+        repository: $(imageRepository)-dev
+        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
+        tags: |
+          $(tag)
+    
+    - task: Docker@2
+      displayName: Push da imagem para Azure Container Registry (ACR)
+      inputs:
+        containerRegistry: $(containerRegistry)
+        repository: $(imageRepository)-dev
+        command: 'push'
+        tags: |
+          $(tag)
+
+################################## CD ##################################
+
+- stage: ArgoCD
+  displayName: ArgoCD - K8s Local
+  jobs:
+  - job: commitargo
+    displayName: commitargo
+    pool:
+     name: agent2024
+    steps:
+      - task: CmdLine@2
+        displayName: Clone repo argo cg 
+        inputs:
+          script: |
+            mkdir pastateste
+            cd pastateste
+            git config --global user.email fabiano@sfiems.com.br #mude para seu e-mail
+            git config --global user.name "Fabiano Villarino" #mude para seu nome
+            git clone $(repossshurl) 
+            cd deploy-portfolio-sesims-frontend-dev/k8s #mudar para nome da pasta que foi criado no projeto
+            sed -E -i.bak 's%$(containerRegistry2)/$(imageRepository)-dev.*%$(containerRegistry2)/$(imageRepository)-dev:$(tag)%' deploy.yaml
+            cat deploy.yaml
+            git add . && git commit -m "Alterado tag da imagem via pipeline" && git push
+
