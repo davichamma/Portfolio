@@ -1,14 +1,14 @@
 const { Sequelize } = require("sequelize");
 require("dotenv").config();
 
-const dbHost = process.env.PORTFOLIO_HOST;
-const dbName = process.env.PORTFOLIO_DB;
-const dbUser = process.env.PORTFOLIO_USER;
-const dbPassword = process.env.PORTFOLIO_PASSWORD;
-
-const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
+// Configuração para localhost
+const sequelize = new Sequelize('your_database', 'your_user', 'your_password', {
   dialect: "mssql",
-  host: dbHost,
+  host: "localhost",
+  // Configurações adicionais para conexão local
+  options: {
+    trustServerCertificate: true, // Necessário para conexões locais no MSSQL
+  }
 });
 
 module.exports = sequelize;
